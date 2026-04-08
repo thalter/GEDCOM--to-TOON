@@ -1,6 +1,12 @@
 # GEDCOM--to-TOON
 
-Convert GEDCOM formatted files to TOON suitable for loading into LLM
+Convert GEDCOM-formatted files to TOON, suitable for loading into LLM for genealogy research.
+
+## Introduction
+Apologies in advance for the AI slop, but this seemed like a trivial enough task to outsource to Copilot. 
+
+In addition to being more human-readable, TOON-formatted ancestry data consumes about 1/3 the number of tokens as
+the comparable GEDCOM data. This is a real boon for working with large family trees.
 
 ## Overview
 
