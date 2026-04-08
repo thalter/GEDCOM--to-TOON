@@ -147,6 +147,61 @@ class TestParseGedcom(unittest.TestCase):
         indis = [r for r in records if r.tag == "INDI"]
         self.assertEqual(len(indis), 0)
 
+    def test_cont_merges_with_newline(self):
+        gedcom = (
+            "0 HEAD\n"
+            "0 @I1@ INDI\n"
+            "1 NOTE First line\n"
+            "2 CONT Second line\n"
+            "0 TRLR\n"
+        )
+        records = parse_gedcom(gedcom)
+        i1 = next(r for r in records if r.xref_id == "@I1@")
+        note = i1.get_child_value("NOTE")
+        self.assertEqual(note, "First line\nSecond line")
+
+    def test_conc_appends_without_newline(self):
+        gedcom = (
+            "0 HEAD\n"
+            "0 @I1@ INDI\n"
+            "1 NOTE StartOf\n"
+            "2 CONC Value\n"
+            "0 TRLR\n"
+        )
+        records = parse_gedcom(gedcom)
+        i1 = next(r for r in records if r.xref_id == "@I1@")
+        note = i1.get_child_value("NOTE")
+        self.assertEqual(note, "StartOfValue")
+
+    def test_cont_conc_not_stored_as_children(self):
+        gedcom = (
+            "0 HEAD\n"
+            "0 @I1@ INDI\n"
+            "1 NOTE Line one\n"
+            "2 CONT Line two\n"
+            "0 TRLR\n"
+        )
+        records = parse_gedcom(gedcom)
+        i1 = next(r for r in records if r.xref_id == "@I1@")
+        note_records = i1.get_children_by_tag("NOTE")
+        self.assertEqual(len(note_records), 1)
+        cont_records = note_records[0].get_children_by_tag("CONT")
+        self.assertEqual(len(cont_records), 0)
+
+    def test_multiple_cont_lines(self):
+        gedcom = (
+            "0 HEAD\n"
+            "0 @I1@ INDI\n"
+            "1 NOTE Line A\n"
+            "2 CONT Line B\n"
+            "2 CONT Line C\n"
+            "0 TRLR\n"
+        )
+        records = parse_gedcom(gedcom)
+        i1 = next(r for r in records if r.xref_id == "@I1@")
+        note = i1.get_child_value("NOTE")
+        self.assertEqual(note, "Line A\nLine B\nLine C")
+
 
 # ---------------------------------------------------------------------------
 # toon_formatter tests

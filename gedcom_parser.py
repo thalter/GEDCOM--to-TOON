@@ -79,6 +79,10 @@ def parse_gedcom(text: str) -> list[GedcomRecord]:
 
     Builds a tree of records where sub-records (level > 0) are children of
     the nearest preceding record at level - 1.
+
+    ``CONT`` and ``CONC`` continuation lines are merged into the value of
+    their parent record rather than stored as child records.  ``CONT`` adds
+    a newline before the continued text; ``CONC`` appends without a newline.
     """
     lines = [parse_line(line) for line in text.splitlines()]
     lines = [line for line in lines if line is not None]
@@ -90,6 +94,20 @@ def parse_gedcom(text: str) -> list[GedcomRecord]:
     stack: list[GedcomRecord] = []
 
     for line in lines:
+        # CONT/CONC are continuations of the nearest parent's value.
+        if line.tag in ("CONT", "CONC") and stack:
+            parent = None
+            for candidate in reversed(stack):
+                if candidate.level == line.level - 1:
+                    parent = candidate
+                    break
+            if parent is not None:
+                if line.tag == "CONT":
+                    parent.value = parent.value + "\n" + line.value
+                else:  # CONC
+                    parent.value = parent.value + line.value
+                continue  # Do not add CONT/CONC as child records.
+
         record = GedcomRecord(
             level=line.level,
             xref_id=line.xref_id,
@@ -112,6 +130,18 @@ def parse_gedcom(text: str) -> list[GedcomRecord]:
 
 
 def load_gedcom_file(path: str) -> list[GedcomRecord]:
-    """Read and parse a GEDCOM file from disk."""
-    with open(path, encoding="utf-8-sig") as fh:
+    """Read and parse a GEDCOM file from disk.
+
+    Tries UTF-8 (with optional BOM) first, then falls back to Latin-1 so
+    that older GEDCOM files using ANSEL or Windows-1252 encodings can still
+    be read without crashing.
+    """
+    for encoding in ("utf-8-sig", "latin-1"):
+        try:
+            with open(path, encoding=encoding) as fh:
+                return parse_gedcom(fh.read())
+        except UnicodeDecodeError:
+            continue
+    # Last-resort: read with replacement for any remaining undecodable bytes.
+    with open(path, encoding="utf-8", errors="replace") as fh:
         return parse_gedcom(fh.read())
